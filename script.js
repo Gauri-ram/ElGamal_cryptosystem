@@ -12,19 +12,20 @@ function encryptMessage() {
     })
     .then(response => response.json())
     .then(data => {
-        document.getElementById("encrypted").innerText = `${data.msg}, ${data.p}`;
+        console.log(data);
+        document.getElementById("encrypted").innerText = `${data.c1}, ${data.c2}`;
     });
 }
 
 function decryptMessage() {
-    const s1 = parseInt(prompt("Enter s1:"));
-    const s2 = parseInt(prompt("Enter s2:"));
+    const c1 = parseInt(prompt("Enter s1:"));
+    const c2 = parseInt(prompt("Enter s2:"));
     fetch(url + "/decrypt", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ s1: parseInt(s1), s2: parseInt(s2) })
+        body: JSON.stringify({ c1: parseInt(c1), c2: parseInt(c2) })
     })
     .then(response => response.json())
     .then(data => {

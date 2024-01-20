@@ -20,61 +20,32 @@ function gcd(a, b) {
     }
 }
 
-function genKey(q) {
-    let key = crypto.randomBytes(32); // Generate a 32-byte buffer
-    key = bigInt(key.toString('hex'), 16); // Convert buffer to BigInt
-    while (gcd(q, key) !== 1) {
-        key = crypto.randomBytes(32); // Regenerate buffer if needed
-        key = bigInt(key.toString('hex'), 16);
-    }
-    return key;
+// function genKey(q) {
+//     let key = bigInt.randBetween(bigInt(2).pow(10), q);
+
+//     while (gcd(q, key) !== 1) {
+//         key = bigInt.randBetween(bigInt(2).pow(10), q);
+//     }
+
+//     return key;
+// }
+
+function modExp(a, b, m) {
+    return bigInt(a).modPow(b, m);
 }
 
-function power(a, b, c) {
-    let x = 1;
-    let y = a;
-
-    while (b > 0) {
-        if (b % 2 !== 0) {
-            x = (x * y) % c;
-        }
-        y = (y * y) % c;
-        b = Math.floor(b / 2);
-    }
-
-    return x % c;
+function encrypt(plaintext, e1, e2, r, p) {
+    const c1 = modExp(e1, r, p); // c1 = e1^r mod p
+    const c2 = plaintext.multiply(modExp(e2, r, p)).mod(p); // c2 = (plaintext * e2^r) mod p
+    return { c1, c2 };
 }
 
-function encrypt(msg, q, h, g) {
-    const enMsg = [];
-    const k = genKey(q); // Private key for sender
-    const s = power(h, k, q);
-    const p = power(g, k, q);
-
-    console.log("g^k used: ", p);
-    console.log("g^ak used: ", s);
-
-    for (let i = 0; i < msg.length; i++) {
-        enMsg.push(msg[i]);
-    }
-
-    for (let i = 0; i < enMsg.length; i++) {
-        enMsg[i] = s * enMsg[i].charCodeAt(0);
-    }
-
-    console.log(enMsg ,p, s);
-    return { s, p };
-}
-
-function decrypt(enMsg, p, key, q) {
-    const drMsg = [];
-    const h = power(p, key, q);
-
-    for (let i = 0; i < enMsg.length; i++) {
-        drMsg.push(String.fromCharCode(Math.floor(enMsg[i] / h)));
-    }
-
-    return drMsg.join('');
+// Function to perform ElGamal decryption
+function decrypt(c1, c2, privateKey, p) {
+    const s = modExp(c1, privateKey, p); // s = c1^privateKey mod p
+    const sInverse = s.modInv(p); // Calculate the modular inverse of s
+    const plaintext = c2.multiply(sInverse).mod(p); // plaintext = (c2 * s^(-1)) mod p
+    return plaintext;
 }
 
 app.post('/encrypt', (req, res) => {
@@ -82,21 +53,28 @@ app.post('/encrypt', (req, res) => {
     
     const q = crypto.randomInt(Math.pow(10, 2), Math.pow(10, 5));
     const g = crypto.randomInt(2, q);
+    const key= 1237;
+    // const key = genKey(q); // Private key for receiver
+    const h = modExp(g, key, q);
 
-    const key = genKey(q); // Private key for receiver
-    const h = power(g, key, q);
+    const r = bigInt.randBetween(2, 10); // Random r in the range [2, q-2]
+    const e1 = modExp(g, r, q); // e1 = g^r mod q
+    const e2 = modExp(h, r, q); // e2 = h^r mod q
 
-    const { enMsg, p } = encrypt(message, q, h, g);
-    res.json({ enMsg, p });
+    const { c1, c2 } = encrypt(bigInt(message), e1, e2, r, q);
+    
+    res.json({ c1: c1.toString(), c2: c2.toString(), p: q.toString() });
 });
 
 app.post('/decrypt', (req, res) => {
-    const { enMsg, p } = req.body;
+    const { c1, c2 } = req.body;
+    console.log(c1,c2);
+    const key= 1237;
+
+    // const key = genKey(bigInt(p)); // Private key for receiver
+    const decrypted = decrypt(bigInt(c1), bigInt(c2), key, 1451);
     
-    const key = genKey(p); // Private key for receiver
-    const decrypted = decrypt(enMsg, p, key, p);
-    
-    res.json({ decrypted });
+    res.json({ decrypted: decrypted.toString() });
 });
 
 app.listen(port, () => {
